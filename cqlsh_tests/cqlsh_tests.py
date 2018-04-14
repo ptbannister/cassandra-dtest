@@ -1945,7 +1945,7 @@ class TestCqlshSmoke(Tester):
         return [table.name for table in list(self.session.cluster.metadata.keyspaces[keyspace].tables.values())]
 
 
-class CqlLoginTest(Tester):
+class TestCqlLogin(Tester):
     """
     Tests login which requires password authenticator
     """
@@ -1958,7 +1958,7 @@ class CqlLoginTest(Tester):
         cluster.populate(1).start(wait_for_binary_proto=True)
         [self.node1] = cluster.nodelist()
         self.node1.watch_log_for('Created default superuser')
-        self.session = self.patient_cql_connection(self.node1, user='cassandra', password='cassandra')
+        self.session = fixture_dtest_setup.patient_cql_connection(self.node1, user='cassandra', password='cassandra')
 
     def assert_login_not_allowed(self, user, input):
         message = ("Provided username {user} and/or password are incorrect".format(user=user)
