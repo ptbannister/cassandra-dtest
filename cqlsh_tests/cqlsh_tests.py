@@ -1680,9 +1680,9 @@ class TestCqlshSmoke(Tester):
 
     @pytest.fixture(scope='function', autouse=True)
     def fixture_cluster_setup(self, fixture_dtest_setup):
-        self.cluster.populate(1).start(wait_for_binary_proto=True)
-        [self.node1] = self.cluster.nodelist()
-        self.session = self.patient_cql_connection(self.node1)
+        fixture_dtest_setup.cluster.populate(1).start(wait_for_binary_proto=True)
+        [self.node1] = fixture_dtest_setup.cluster.nodelist()
+        self.session = fixture_dtest_setup.patient_cql_connection(self.node1)
 
     def test_uuid(self):
         """
@@ -1708,7 +1708,7 @@ class TestCqlshSmoke(Tester):
         assert len(result[1]) == 1
         assert isinstance(result[0][0], UUID)
         assert isinstance(result[1][0], UUID)
-        self.assertNotEqual(result[0][0], result[1][0])
+        assert result[0][0] != result[1][0]
 
     def test_commented_lines(self):
         create_ks(self.session, 'ks', 1)
