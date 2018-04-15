@@ -109,7 +109,7 @@ class TestCqlsh(Tester):
             CREATE TABLE lwt.lwt (id int PRIMARY KEY , value text)""")
 
         def assert_applied(stmt, node=node1):
-            expected_substring = '[applied]'
+            expected_substring = b'[applied]'
             output, _ = self.run_cqlsh(node, stmt)
             msg = '{exp} not found in output from {stmt}: {routput}'.format(
                 exp=repr(expected_substring),
@@ -1523,9 +1523,7 @@ Tracing session:""")
         assert 1 == len(fut.warnings)
         expected_fut_warning = ("Unlogged batch covering {} partitions detected against table [client_warnings.test]. " + \
                                 "You should use a logged batch for atomicity, or asynchronous writes for performance.") \
-                               .format(max_partitions_per_batch + 1) \
-                               .encode("utf-8")
-        assert isinstance(fut.warnings[0], bytes) # TODO: remove this assertion
+                               .format(max_partitions_per_batch + 1)
         assert expected_fut_warning == fut.warnings[0]
 
     def test_connect_timeout(self):
@@ -1646,10 +1644,9 @@ Tracing session:""")
         assert b"Materialized view 'users_by_state' not found" in err
 
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
-        logger.debug(create_statement) # TODO: remove this log
         out, err = self.run_cqlsh(node1, create_statement)
         err_str = err.decode("utf-8")
-        assert 0 == len(err_str), err_str
+        assert 0 == len(err_str), b"Error running statement {0}: {1}".format(create_statement.encode("utf-8"), err_str) #TODO: remove this error message
 
         reloaded_describe_out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
         err_str = err.decode("utf-8")
