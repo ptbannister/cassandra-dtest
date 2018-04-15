@@ -1652,7 +1652,7 @@ Tracing session:""")
         reloaded_describe_out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
         err_str = err.decode("utf-8")
         assert 0 == len(err_str), err_str
-        assert describe_out_str == reloaded_describe_out
+        assert describe_out == reloaded_describe_out
 
         reloaded_select_out, err = self.run_cqlsh(node1, "SELECT * FROM test.users_by_state")
         err_str = err.decode("utf-8")
