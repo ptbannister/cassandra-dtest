@@ -1649,6 +1649,8 @@ Tracing session:""")
         assert 0 == len(stdout), stdout
 
     def run_cqlsh(self, node, cmds, cqlsh_options=None, env_vars=None):
+        if not isinstance(cmds, bytes):
+            cmds = cmds.encode("utf-8")
         if env_vars is None:
             env_vars = {}
         if cqlsh_options is None:
@@ -1667,9 +1669,9 @@ Tracing session:""")
         args = cqlsh_options + [host, str(port)]
         sys.stdout.flush()
         p = subprocess.Popen([cli] + args, env=env, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        for cmd in cmds.split(';'):
-            p.stdin.write(cmd + ';\n')
-        p.stdin.write("quit;\n")
+        for cmd in cmds.split(b';'):
+            p.stdin.write(cmd + b';\n')
+        p.stdin.write(b"quit;\n")
         return p.communicate()
 
 
