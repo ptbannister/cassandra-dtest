@@ -1647,7 +1647,7 @@ Tracing session:""")
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
         out, err = self.run_cqlsh(node1, create_statement)
         err_str = err.decode("utf-8")
-        assert 0 == len(err_str), "Error running statement {0}: {1}".format(create_statement, err_str) #TODO: remove this error message
+        assert 0 == len(err_str), "Error running statement {0}: {1}".format(create_statement, err_str)
 
         reloaded_describe_out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
         err_str = err.decode("utf-8")
