@@ -1640,8 +1640,8 @@ Tracing session:""")
         assert b"CREATE MATERIALIZED VIEW users_by_state" not in out
 
         out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
-        describe_out_str = out.decode("utf-8")
-        assert 0 == len(describe_out_str.strip()), describe_out_str
+        describe_after_drop_out_str = out.decode("utf-8")
+        assert 0 == len(describe_after_drop_out_str.strip()), describe_after_drop_out_str
         assert b"Materialized view 'users_by_state' not found" in err
 
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
