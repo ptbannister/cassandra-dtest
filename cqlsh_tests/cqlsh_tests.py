@@ -1555,12 +1555,12 @@ Tracing session:""")
         stdout, stderr = self.run_cqlsh(node1, cmds="""
               CREATE KEYSPACE training WITH replication={'class':'SimpleStrategy','replication_factor':1};
               DESCRIBE KEYSPACES""", cqlsh_options=cqlsh_opts)
-        assert "training" in stdout
+        assert b"training" in stdout
 
         stdout, stderr = self.run_cqlsh(node1, """USE training;
                                                   CREATE TABLE mytable (id int, val text, PRIMARY KEY (id));
                                                   describe tables""", cqlsh_options=cqlsh_opts)
-        assert "mytable" in stdout
+        assert b"mytable" in stdout
 
     def test_describe_round_trip(self):
         """
@@ -1646,7 +1646,7 @@ Tracing session:""")
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
         out, err = self.run_cqlsh(node1, create_statement)
         err_str = err.decode("utf-8")
-        assert 0 == len(err_str), b"Error running statement {0}: {1}".format(create_statement.encode("utf-8"), err_str) #TODO: remove this error message
+        assert 0 == len(err_str), "Error running statement {0}: {1}".format(create_statement.encode, err_str.decode()) #TODO: remove this error message
 
         reloaded_describe_out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
         err_str = err.decode("utf-8")
