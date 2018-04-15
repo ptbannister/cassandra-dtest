@@ -1169,7 +1169,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         # session
         with open(self.tempfile.name, 'r') as csvfile:
             csvreader = csv.reader(csvfile)
-            selected_results_strings = [list(map(str, cql_row)) for cql_row in results]
+            selected_results_strings = [list(map(str, cql_row)) for cql_row in selected_results]
             exported_results = [row for row in csvreader]
             assert selected_results_strings == exported_results
 
@@ -1177,7 +1177,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         session.execute("TRUNCATE ks.testcopyto")
         node1.run_cqlsh(cmds="COPY ks.testcopyto FROM '%s'" % (self.tempfile.name,))
         new_results = list(session.execute("SELECT * FROM testcopyto"))
-        assert selected_results == ne`w_results
+        assert selected_results == new_results
 
     def test_float_formatting(self):
         """ Tests for CASSANDRA-9224, check format of float and double values"""
