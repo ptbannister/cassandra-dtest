@@ -67,8 +67,8 @@ class TestCqlsh(Tester):
         p = subprocess.Popen(cmds, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
 
-        assert len(stdout), 0 == stdout
-        assert len(stderr), 0 == stderr
+        assert 0 == len(stdout), stdout
+        assert 0 == len(stderr), stderr
 
     def test_simple_insert(self):
 
@@ -90,8 +90,7 @@ class TestCqlsh(Tester):
         session = self.patient_cql_connection(node1)
         rows = list(session.execute("select id, value from simple.simple"))
 
-        self.assertEqual({1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five'},
-                         {k: v for k, v in rows})
+        assert {1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five'} == {k: v for k, v in rows}
 
     def test_lwt(self):
         """
@@ -116,8 +115,8 @@ class TestCqlsh(Tester):
                 exp=repr(expected_substring),
                 stmt=repr(stmt),
                 routput=repr(output)
-            )
-            assert expected_substring == output in msg
+            ).encode("utf-8")
+            assert expected_substring in output, msg
 
         assert_applied("INSERT INTO lwt.lwt (id, value) VALUES (1, 'one') IF NOT EXISTS")
         assert_applied("INSERT INTO lwt.lwt (id, value) VALUES (1, 'one') IF NOT EXISTS")
@@ -144,11 +143,11 @@ class TestCqlsh(Tester):
         output, err = self.run_cqlsh(node1, 'use simple; SELECT * FROM simpledate')
 
         if self.cluster.version() >= LooseVersion('3.4'):
-            assert "2143-04-19 11:21:01.000000+0000" in output
-            assert "1943-04-19 11:21:01.000000+0000" in output
+            assert b"2143-04-19 11:21:01.000000+0000" in output
+            assert b"1943-04-19 11:21:01.000000+0000" in output
         else:
-            assert "2143-04-19 11:21:01+0000" in output
-            assert "1943-04-19 11:21:01+0000" in output
+            assert b"2143-04-19 11:21:01+0000" in output
+            assert b"1943-04-19 11:21:01+0000" in output
 
     @since('3.4')
     def test_sub_second_precision(self):
@@ -564,13 +563,13 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         insert_c1c2(session, n=100)
 
         out, err = self.run_cqlsh(node1, 'TRACING ON; SELECT * FROM ks.cf')
-        assert 'Tracing session: ' in out
+        assert b'Tracing session: ' in out
 
         out, err = self.run_cqlsh(node1, 'TRACING ON; SELECT * FROM system_traces.events')
-        assert 'Tracing session: ' not in out
+        assert b'Tracing session: ' not in out
 
         out, err = self.run_cqlsh(node1, 'TRACING ON; SELECT * FROM system_traces.sessions')
-        assert 'Tracing session: ' not in out
+        assert b'Tracing session: ' not in out
 
     def test_select_element_inside_udt(self):
         self.cluster.populate(1).start()
@@ -603,18 +602,20 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             """)
 
         out, err = self.run_cqlsh(node1, "SELECT name.lastname FROM ks.users WHERE id=62c36092-82a1-3a00-93d1-46196ee77204")
-        assert 'list index out of range' not in err
+        assert b'list index out of range' not in err
         # If this assertion fails check CASSANDRA-7891
 
     def verify_output(self, query, node, expected):
+        if not isinstance(expected, bytes):
+            expected = expected.encode("utf-8")
         output, err = self.run_cqlsh(node, query, ['-u', 'cassandra', '-p', 'cassandra'])
         if common.is_win():
-            output = output.replace('\r', '')
+            output = output.replace(b'\r', b'')
 
-        assert len(err), 0 == "Failed to execute cqlsh: {}".format(err)
+        assert 0 == len(err), b"Failed to execute cqlsh: {}".format(err)
 
         logger.debug(output)
-        assert expected in output, "Output \n {%s} \n doesn't contain expected\n {%s}" % (output, expected)
+        assert expected in output, b"Output \n {%s} \n doesn't contain expected\n {%s}" % (output, expected)
 
     def test_list_queries(self):
         config = {'authenticator': 'org.apache.cassandra.auth.PasswordAuthenticator',
@@ -697,8 +698,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 
         # Describe keyspaces
         output = self.execute(cql="DESCRIBE KEYSPACES")
-        assert "test" in output
-        assert "system" in output
+        assert b"test" in output
+        assert b"system" in output
 
         # Describe keyspace
         self.execute(cql="DESCRIBE KEYSPACE test", expected_output=self.get_keyspace_output())
@@ -777,8 +778,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                         "'min_threshold': 10, 'max_threshold': 100 }")
         describe_cmd = 'DESCRIBE ks.tab'
         stdout, _ = self.run_cqlsh(node, describe_cmd)
-        assert "'min_threshold': '10'" in stdout
-        assert "'max_threshold': '100'" in stdout
+        assert b"'min_threshold': '10'" in stdout
+        assert b"'max_threshold': '100'" in stdout
 
     def test_describe_on_non_reserved_keywords(self):
         """
@@ -793,8 +794,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         session.execute("CREATE TABLE map (key int PRIMARY KEY, val text)")
         describe_cmd = 'USE ks; DESCRIBE map'
         out, err = self.run_cqlsh(node, describe_cmd)
-        assert "" == err
-        assert "CREATE TABLE ks.map (" in out
+        assert b"" == err
+        assert b"CREATE TABLE ks.map (" in out
 
     @since('3.0')
     def test_describe_mv(self):
@@ -815,7 +816,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 """)
 
         output = self.execute(cql="DESCRIBE KEYSPACE test")
-        assert "users_by_state" in output
+        assert b"users_by_state" in output
 
         self.execute(cql='DESCRIBE MATERIALIZED VIEW test.users_by_state', expected_output=self.get_users_by_state_mv_output())
         self.execute(cql='DESCRIBE test.users_by_state', expected_output=self.get_users_by_state_mv_output())
@@ -1048,6 +1049,14 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 
     def execute(self, cql, expected_output=None, expected_err=None, env_vars=None):
         logger.debug(cql)
+
+        if not isinstance(cql, bytes):
+            cql = cql.encode("utf-8")
+        if (expected_output is not None and not isinstance(expected_output, bytes)):
+            expected_output = expected_output.encode("utf-8")
+        if (expected_err is not None and not isinstance(expected_err, bytes)):
+            expected_err = expected_err.encode("utf-8")
+
         node1, = self.cluster.nodelist()
         output, err = self.run_cqlsh(node1, cql, env_vars=env_vars)
 
@@ -1065,8 +1074,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         return output
 
     def check_response(self, response, expected_response):
-        lines = [s.strip() for s in response.split("\n") if s.strip()]
-        expected_lines = [s.strip() for s in expected_response.split("\n") if s.strip()]
+        lines = [s.strip() for s in response.split(b"\n") if s.strip()]
+        expected_lines = [s.strip() for s in expected_response.split(b"\n") if s.strip()]
         assert expected_lines == lines
 
     def test_copy_to(self):
@@ -1300,7 +1309,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             INSERT INTO values (part, val1, val2, val3, val4) VALUES ('min', %d, %d, -32768, -128);
             INSERT INTO values (part, val1, val2, val3, val4) VALUES ('max', %d, %d, 32767, 127)""" % (-1 << 31, -1 << 63, (1 << 31) - 1, (1 << 63) - 1))
 
-        assert len(stderr), 0 == "Failed to execute cqlsh: {}".format(stderr)
+        assert 0 == len(stderr), "Failed to execute cqlsh: {}".format(stderr)
 
         self.verify_output("select * from int_checks.values", node1, """
  part | val1        | val2                 | val3   | val4
@@ -1342,7 +1351,7 @@ CREATE TABLE int_checks.values (
                                         % (datetime.MINYEAR - 1, datetime.MINYEAR, datetime.MAXYEAR, datetime.MAXYEAR + 1,))
         # outside the MIN and MAX range it should print the number of days from the epoch
 
-        assert len(stderr), 0 == "Failed to execute cqlsh: {}".format(stderr)
+        assert 0 == len(stderr), "Failed to execute cqlsh: {}".format(stderr)
 
         self.verify_output("select * from datetime_checks.values", node1, """
  d          | t
@@ -1383,7 +1392,7 @@ CREATE TABLE datetime_checks.values (
             INSERT INTO test (id, val) VALUES (2, 'lkjlk');
             INSERT INTO test (id, val) VALUES (3, 'iuiou')""")
 
-        assert len(stderr), 0 == "Failed to execute cqlsh: {}".format(stderr)
+        assert 0 == len(stderr), "Failed to execute cqlsh: {}".format(stderr)
 
         self.verify_output("use tracing_checks; tracing on; select * from test", node1, """Now Tracing is enabled
 
@@ -1427,7 +1436,7 @@ Tracing session:""")
             USE client_warnings;
             CREATE TABLE test (id int, val text, PRIMARY KEY (id))""")
 
-        assert len(stderr), 0 == "Failed to execute cqlsh: {}".format(stderr)
+        assert 0 == len(stderr), "Failed to execute cqlsh: {}".format(stderr)
 
         session = self.patient_cql_connection(node1)
         prepared = session.prepare("INSERT INTO client_warnings.test (id, val) VALUES (?, 'abc')")
@@ -1449,10 +1458,12 @@ Tracing session:""")
         logger.debug(fut.warnings)
         assert fut.warnings is not None
         assert 1 == len(fut.warnings)
-        assert "Unlogged batch covering {} partitions detected against table [client_warnings.test]. "\
-                   .format(max_partitions_per_batch + 1) + "You should use a logged batch for atomicity, " \
-                                                           "or asynchronous writes for performance." \
-               == fut.warnings[0]
+        expected_fut_warning = ("Unlogged batch covering {} partitions detected against table [client_warnings.test]. " + \
+                                "You should use a logged batch for atomicity, or asynchronous writes for performance.") \
+                               .format(max_partitions_per_batch + 1) \
+                               .encode("utf-8")
+        assert isinstance(fut.warnings[0], bytes) # TODO: remove this assertion
+        assert expected_fut_warning == fut.warnings[0]
 
     def test_connect_timeout(self):
         """
@@ -1464,7 +1475,7 @@ Tracing session:""")
         node1, = self.cluster.nodelist()
 
         stdout, stderr = self.run_cqlsh(node1, cmds='USE system', cqlsh_options=['--debug', '--connect-timeout=10'])
-        assert "Using connect timeout: 10 seconds" in stderr
+        assert b"Using connect timeout: 10 seconds" in stderr
 
     def test_update_schema_with_down_node(self):
         """
@@ -1564,14 +1575,15 @@ Tracing session:""")
         out, err = self.run_cqlsh(node1, "DROP MATERIALIZED VIEW test.users_by_state; DESCRIBE KEYSPACE test; DESCRIBE table test.users")
         err_str = err.decode("utf-8")
         assert 0 == len(err_str), err_str
-        assert "CREATE MATERIALIZED VIEW users_by_state" not in out
+        assert b"CREATE MATERIALIZED VIEW users_by_state" not in out
 
         out, err = self.run_cqlsh(node1, 'DESCRIBE MATERIALIZED VIEW test.users_by_state')
-        describe_out_str = describe_out.decode("utf-8")
+        describe_out_str = out.decode("utf-8")
         assert 0 == len(describe_out_str.strip()), describe_out_str
-        assert "Materialized view 'users_by_state' not found" in err
+        assert b"Materialized view 'users_by_state' not found" in err
 
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
+        logger.debug(create_statement) # TODO: remove this log
         out, err = self.run_cqlsh(node1, create_statement)
         err_str = err.decode("utf-8")
         assert 0 == len(err_str), err_str
@@ -1625,11 +1637,11 @@ Tracing session:""")
         node1, = self.cluster.nodelist()
 
         out, err = self.run_cqlsh(node1, cmd, env_vars={'TERM': 'xterm'})
-        assert "" == err
+        assert b"" == err
 
         # Can't check escape sequence on cmd prompt. Assume no errors is good enough metric.
         if not common.is_win():
-            assert re.search(chr(27) + "\[[0,1,2]?J", out)
+            assert re.search((chr(27) + "\[[0,1,2]?J").encode("utf-8"), out)
 
     def test_batch(self):
         """
