@@ -1160,7 +1160,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         args = [(i, str(i), float(i) + 0.5, uuid4()) for i in range(10000)]
         execute_concurrent_with_args(session, insert_statement, args)
 
-        results = list(session.execute("SELECT * FROM testcopyto"))
+        selected_results = list(session.execute("SELECT * FROM testcopyto"))
 
         self.tempfile = NamedTemporaryFile(delete=False)
         logger.debug('Exporting to csv file: %s' % (self.tempfile.name,))
@@ -1169,14 +1169,15 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         # session
         with open(self.tempfile.name, 'r') as csvfile:
             csvreader = csv.reader(csvfile)
-            result_list = [list(map(str, cql_row)) for cql_row in results]
-            assert result_list == csvreader
+            selected_results_strings = [list(map(str, cql_row)) for cql_row in results]
+            exported_results = [row for row in csvreader]
+            assert selected_results_strings == exported_results
 
         # import the CSV file with COPY FROM
         session.execute("TRUNCATE ks.testcopyto")
         node1.run_cqlsh(cmds="COPY ks.testcopyto FROM '%s'" % (self.tempfile.name,))
         new_results = list(session.execute("SELECT * FROM testcopyto"))
-        assert results == new_results
+        assert selected_results == ne`w_results
 
     def test_float_formatting(self):
         """ Tests for CASSANDRA-9224, check format of float and double values"""
