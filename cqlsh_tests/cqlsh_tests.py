@@ -185,11 +185,11 @@ class TestCqlsh(Tester):
         session = self.patient_cql_connection(node)
 
         def verify_varcharmap(map_name, expected, encode_value=False):
-            rows = list(session.execute(("SELECT %s FROM testks.varcharmaptable WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜';" % map_name).encode("utf-8")))
+            rows = list(session.execute(("SELECT %s FROM testks.varcharmaptable WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜';" % map_name)))
             if encode_value:
                 got = {k.encode("utf-8"): v.encode("utf-8") for k, v in rows[0][0].items()}
             else:
-                got = {k.encode("utf-8"): v for k, v in rows[0][0].items()}
+                got = {k: v for k, v in rows[0][0].items()}
             assert got == expected
 
         verify_varcharmap('varcharasciimap', {
@@ -288,7 +288,7 @@ class TestCqlsh(Tester):
             ' ⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑': ' ⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑',
             'Можам да јадам стакло, а не ме штета.': 'Можам да јадам стакло, а не ме штета.',
             'I can eat glass and it does not hurt me': 'I can eat glass and it does not hurt me'
-        }, encode_value=True)
+        })
 
         verify_varcharmap('varcharvarintmap', {
             'Vitrum edere possum, mihi non nocet.': 1010010101020400204143243,
