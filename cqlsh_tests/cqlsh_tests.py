@@ -421,7 +421,7 @@ INSERT INTO varcharmaptable (varcharkey, varcharvarintmap ) VALUES      ('᚛᚛
 UPDATE varcharmaptable SET varcharvarintmap = varcharvarintmap + {'Vitrum edere possum, mihi non nocet.':20000} WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜';
 
 UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet.'] = 1010010101020400204143243 WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜'
-        """.encode("utf-8"))
+        """)
 
         self.verify_glass(node1)
 
@@ -446,8 +446,7 @@ UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet
 
         node1, = self.cluster.nodelist()
 
-        output, err, _ = node1.run_cqlsh(cmds="ä;".encode('utf8'))
-        err = err.decode('utf8')
+        output, err, _ = node1.run_cqlsh(cmds="ä;")
         assert 'Invalid syntax' in err
         assert 'ä' in err
 
@@ -463,10 +462,8 @@ UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet
         node1, = self.cluster.nodelist()
 
         cmd = '''create keyspace "ä" WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};'''
-        cmd = cmd.encode('utf8')
         output, err, _ = node1.run_cqlsh(cmds=cmd, cqlsh_options=["--debug"])
 
-        err = err.decode('utf8')
         assert '"ä" is not a valid keyspace name' in err
 
     def test_with_empty_values(self):
@@ -533,11 +530,11 @@ INSERT INTO has_all_types (num, intcol, asciicol, bigintcol, blobcol, booleancol
                            timestampcol, uuidcol, varcharcol, varintcol)
 VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDecimal(0x),
         blobAsDouble(0x), blobAsFloat(0x), '', blobAsTimestamp(0x), blobAsUuid(0x), '',
-        blobAsVarint(0x))""".encode("utf-8"))
+        blobAsVarint(0x))""")
 
         output, err = self.run_cqlsh(node1, "select intcol, bigintcol, varintcol from CASSANDRA_7196.has_all_types where num in (0, 1, 2, 3, 4)")
         if common.is_win():
-            output = output.decode("utf-8").replace('\r', '')
+            output = output.replace('\r', '').encode("utf-8")
 
         expected = """
  intcol      | bigintcol            | varintcol
@@ -546,7 +543,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
   2147483647 |  9223372036854775807 |                           9
            0 |                    0 |                           0
  -2147483648 | -9223372036854775808 | -10000000000000000000000000
-             |                      |                            \n\n(5 rows)"""
+             |                      |                            \n\n(5 rows)""".encode("utf-8")
+
 
         assert expected in output, "Output \n {%s} \n doesn't contain expected\n {%s}" % (output, expected)
 
