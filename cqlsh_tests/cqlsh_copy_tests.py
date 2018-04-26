@@ -21,7 +21,7 @@ from cassandra.cluster import ConsistencyLevel, SimpleStatement
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.cqltypes import EMPTY
 from cassandra.murmur3 import murmur3
-from cassandra.util import SortedSet
+from cassandra.util import OrderedMap, SortedSet
 from ccmlib.common import is_win
 
 from .cqlsh_tools import (DummyColorMap, assert_csvs_items_equal, csv_rows,
@@ -272,17 +272,23 @@ class TestCqlshCopy(Tester):
             """
             return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
 
-        class ImmutableDict(frozenset):
-            iteritems = frozenset.__iter__
+        
+#        class ImmutableDict(frozenset):
+#            iteritems = frozenset.__iter__
+#
+#            def __repr__(self):
+#                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
+#                                                  for t in sorted(self)]))
 
-            def __repr__(self):
-                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
-                                                  for t in sorted(self)]))
+        ImmutableDict = OrderedMap
 
         class ImmutableSet(SortedSet):
 
             def __repr__(self):
                 return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
+
+            def __hash__(self):
+                return hash(tuple([e for e in self]))
 
         class Name(namedtuple('Name', ('firstname', 'lastname'))):
             __slots__ = ()
@@ -1446,19 +1452,19 @@ class TestCqlshCopy(Tester):
                 num_lines.append(len(open(os.path.join(gettempdir(), f)).readlines()))
                 os.unlink(f)
 
-            num_expected_files = num_records / max_size if num_records % max_size == 0 else (num_records / max_size + 1)
+            num_expected_files = int(num_records / max_size) if (num_records % max_size == 0) else int(num_records / max_size) + 1
             assert num_expected_files == len(output_files)
             if header:
-                assert num_records + 1
+                assert (num_records + 1) == sum(num_lines)
             else:
                 assert num_records == sum(num_lines)
 
             for i, n in enumerate(sorted(num_lines, reverse=True)):
-                if i < num_records / max_size:
-                    num_expected_lines = max_size + 1 if i == 0 and header else max_size
+                if i < int(num_records / max_size):
+                    num_expected_lines = max_size + 1 if (i == 0 and header) else max_size
                     assert num_expected_lines == n
                 else:
-                    assert num_records % max_size == n
+                    assert (num_records % max_size) == n
 
         do_test(1000, False)
         do_test(1000, True)
@@ -2172,7 +2178,7 @@ class TestCqlshCopy(Tester):
                                    .format(stress_table, tempfile.name, num_processes))
         logger.debug(out)
         assert 'Using {} child processes'.format(num_processes) in out
-        assert [[num_records]] == rows_to_list(self.session.execute("SELECT COUNT(* FROM {}"
+        assert [[num_records]] == rows_to_list(self.session.execute("SELECT COUNT(*) FROM {}"
                                                                             .format(stress_table)))
 
     def test_round_trip_with_rate_file(self):
@@ -2220,7 +2226,7 @@ class TestCqlshCopy(Tester):
                        .format(stress_table, tempfile.name, ratefile.name, report_frequency))
 
         # check all records were imported
-        assert [[num_rows]] == rows_to_list(self.session.execute("SELECT COUNT(* FROM {}"
+        assert [[num_rows]] == rows_to_list(self.session.execute("SELECT COUNT(*) FROM {}"
                                                                          .format(stress_table)))
 
         check_rate_file()
@@ -2260,7 +2266,7 @@ class TestCqlshCopy(Tester):
             return ''
 
         def check_options(out, expected_options):
-            opts = extract_options(out.decode("utf-8"))
+            opts = extract_options(out)
             logger.debug('Options: {}'.format(opts))
             d = json.loads(opts)
             for k, v in expected_options:
@@ -3097,7 +3103,7 @@ class TestCqlshCopy(Tester):
         self.run_cqlsh(cmds=cmds)
 
         res = rows_to_list(self.session.execute("SELECT COUNT(*) FROM ks.test_pk_timestamps_with_counters"))[0][0]
-        assert len(records) == len(res), "Failed to import one or more rows, expected {} but got {}".format(len(records), res)
+        assert len(records) == res, "Failed to import one or more rows, expected {} but got {}".format(len(records), res)
 
     def test_copy_from_with_wrong_order_or_missing_UDT_fields(self):
         """
