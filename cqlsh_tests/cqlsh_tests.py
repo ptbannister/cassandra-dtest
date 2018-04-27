@@ -612,10 +612,10 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         if common.is_win():
             output = output.replace(b'\r', b'')
 
-        assert 0 == len(err), b"Failed to execute cqlsh: {}".format(err)
+        assert 0 == len(err), "Failed to execute cqlsh: {}".format(err.decode())
 
         logger.debug(output)
-        assert expected in output, b"Output \n {%s} \n doesn't contain expected\n {%s}" % (output, expected)
+        assert expected in output, "Output \n {%s} \n doesn't contain expected\n {%s}" % (output.decode(), expected.decode())
 
     def test_list_queries(self):
         config = {'authenticator': 'org.apache.cassandra.auth.PasswordAuthenticator',
@@ -635,10 +635,10 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 
         if self.cluster.version() >= '2.2':
             self.verify_output("LIST USERS", node1, """
- name      | super
------------+-------
- cassandra |  True
-     user1 | False
+ name      | super | datacenters
+-----------+-------+-------------
+ cassandra |  True |         ALL
+     user1 | False |         ALL
 
 (2 rows)
 """)
@@ -859,7 +859,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}
             AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}
             AND crc_check_chance = 1.0
-            AND dclocal_read_repair_chance = 0.1
+            AND dclocal_read_repair_chance = 0.0
             AND default_time_to_live = 0
             AND gc_grace_seconds = 864000
             AND max_index_interval = 2048
@@ -950,7 +950,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}
             AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}
             AND crc_check_chance = 1.0
-            AND dclocal_read_repair_chance = 0.1
+            AND dclocal_read_repair_chance = 0.0
             AND default_time_to_live = 0
             AND gc_grace_seconds = 864000
             AND max_index_interval = 2048
@@ -1054,7 +1054,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 AND compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32', 'min_threshold': '4'}
                 AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.LZ4Compressor'}
                 AND crc_check_chance = 1.0
-                AND dclocal_read_repair_chance = 0.1
+                AND dclocal_read_repair_chance = 0.0
                 AND default_time_to_live = 0
                 AND gc_grace_seconds = 864000
                 AND max_index_interval = 2048
@@ -1140,6 +1140,19 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         lines = [s.strip() for s in response.split(b"\n") if s.strip()]
         expected_lines = [s.strip() for s in expected_response.split(b"\n") if s.strip()]
         assert expected_lines == lines
+
+    def strip_read_repair_chance(self, describe_statement):
+        """
+        Remove read_repair_chance and dclocal_read_repair_chance options
+        from output of DESCRIBE statements. The resulting string may be
+        reused as a CREATE statement.
+        Useful after CASSANDRA-13910, which removed read_repair_chance
+        options from CREATE statements but did not remove them completely
+        from the system.
+        """
+        describe_statement = re.sub(r"( AND)? (dclocal_)?read_repair_chance = [\d\.]+", "", describe_statement)
+        describe_statement = re.sub(r"WITH[\s]*;", "", describe_statement)
+        return describe_statement
 
     def test_copy_to(self):
         self.cluster.populate(1).start()
@@ -1590,6 +1603,7 @@ Tracing session:""")
         session.execute('DROP TABLE test_ks.lcs_describe')
 
         create_statement = 'USE test_ks; ' + ' '.join(describe_out.decode("utf-8").splitlines())
+        create_statement = self.strip_read_repair_chance(create_statement)
         create_out, create_err = self.run_cqlsh(node1, create_statement)
 
         # these statements shouldn't fall down
@@ -1645,6 +1659,7 @@ Tracing session:""")
         assert b"Materialized view 'users_by_state' not found" in err
 
         create_statement = 'USE test; ' + ' '.join(describe_out_str.splitlines()).strip()[:-1]
+        create_statement = self.strip_read_repair_chance(create_statement)
         out, err = self.run_cqlsh(node1, create_statement)
         err_str = err.decode("utf-8")
         assert 0 == len(err_str)
