@@ -1809,6 +1809,7 @@ class TestCqlshCopy(Tester):
         _test(True)
         _test(False)
 
+    @pytest.mark.depends_cqlshlib
     def test_all_datatypes_round_trip(self):
         """
         Test that a table containing all CQL datatypes successfully round-trips
