@@ -21,7 +21,7 @@ from cassandra.cluster import ConsistencyLevel, SimpleStatement
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.cqltypes import EMPTY
 from cassandra.murmur3 import murmur3
-from cassandra.util import OrderedMap, SortedSet
+from cassandra.util import SortedSet
 from ccmlib.common import is_win
 
 from .cqlsh_tools import (DummyColorMap, assert_csvs_items_equal, csv_rows,
@@ -68,7 +68,7 @@ class TestCqlshCopy(Tester):
     def fixture_temp_files(self):
         self._tempfiles = []
         yield
-        self.delete_temp_files() 
+        self.delete_temp_files()
 
     @classmethod
     def setUpClass(cls):
@@ -272,15 +272,12 @@ class TestCqlshCopy(Tester):
             """
             return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
 
-        
-#        class ImmutableDict(frozenset):
-#            iteritems = frozenset.__iter__
-#
-#            def __repr__(self):
-#                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
-#                                                  for t in sorted(self)]))
+        class ImmutableDict(frozenset):
+            iteritems = frozenset.__iter__
 
-        ImmutableDict = OrderedMap
+            def __repr__(self):
+                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
+                                                  for t in sorted(self)]))
 
         class ImmutableSet(SortedSet):
 
@@ -484,7 +481,6 @@ class TestCqlshCopy(Tester):
                              for v, t in zip(row, cql_type_names)]
             processed.append(formatted_row)
         return processed
-
 
     @pytest.mark.depends_cqlshlib
     def test_list_data(self):
@@ -799,7 +795,6 @@ class TestCqlshCopy(Tester):
         result = self.session.execute("SELECT * FROM testcounter")
         result_as_list = rows_to_list(result)
         result_as_list.sort()
-        #assert data == rows_to_list(result)
         assert data == result_as_list
 
     def test_reading_counter(self):
@@ -896,8 +891,8 @@ class TestCqlshCopy(Tester):
             csv_values = list(csv.reader(csvfile))
 
         assert csv_values == [['1', '2015/01/01 07:00'],
-                               ['2', '2015/06/10 12:30'],
-                               ['3', '2015/12/31 23:59']]
+                              ['2', '2015/06/10 12:30'],
+                              ['3', '2015/12/31 23:59']]
 
         self.session.execute("TRUNCATE testdatetimeformat")
         cmds = "COPY ks.testdatetimeformat FROM '{name}'".format(name=tempfile.name)

@@ -547,7 +547,6 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
  -2147483648 | -9223372036854775808 | -10000000000000000000000000
              |                      |                            \n\n(5 rows)""".encode("utf-8")
 
-
         assert expected in output, "Output \n {%s} \n doesn't contain expected\n {%s}" % (output, expected)
 
     def test_tracing_from_system_traces(self):
@@ -1544,9 +1543,9 @@ Tracing session:""")
         logger.debug(fut.warnings)
         assert fut.warnings is not None
         assert 1 == len(fut.warnings)
-        expected_fut_warning = ("Unlogged batch covering {} partitions detected against table [client_warnings.test]. " + \
+        expected_fut_warning = ("Unlogged batch covering {} partitions detected against table [client_warnings.test]. " +
                                 "You should use a logged batch for atomicity, or asynchronous writes for performance.") \
-                               .format(max_partitions_per_batch + 1)
+                                .format(max_partitions_per_batch + 1)
         assert expected_fut_warning == fut.warnings[0]
 
     def test_connect_timeout(self):
