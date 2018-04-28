@@ -633,12 +633,21 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         conn.execute("CREATE USER user1 WITH PASSWORD 'user1'")
         conn.execute("GRANT ALL ON ks.t1 TO user1")
 
-        if self.cluster.version() >= '2.2':
+        if self.cluster.version() >= '4.0':
             self.verify_output("LIST USERS", node1, """
  name      | super | datacenters
 -----------+-------+-------------
  cassandra |  True |         ALL
      user1 | False |         ALL
+
+(2 rows)
+""")
+        elif self.cluster.version() >= '2.2':
+            self.verify_output("LIST USERS", node1, """
+ name      | super
+-----------+-------
+ cassandra |  True
+     user1 | False
 
 (2 rows)
 """)
