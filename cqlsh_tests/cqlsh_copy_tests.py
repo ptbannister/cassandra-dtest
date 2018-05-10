@@ -24,7 +24,7 @@ from cassandra.murmur3 import murmur3
 from cassandra.util import SortedSet
 from ccmlib.common import is_win
 
-from .cqlsh_tools import (DummyColorMap, assert_csvs_items_equal, csv_rows,
+from cqlsh_tests.cqlsh_tools import (DummyColorMap, assert_csvs_items_equal, csv_rows,
                          monkeypatch_driver, random_list, unmonkeypatch_driver,
                          write_rows_to_csv)
 from dtest import (Tester, create_ks)
@@ -429,7 +429,7 @@ class TestCqlshCopy(Tester):
                 format_fn = format_value
 
             if val is None or val == EMPTY or val == nullval:
-                return format_value_default(nullval)
+                return format_value_default(nullval, color_map).strval
 
             # CASSANDRA-11255 increased COPY TO DOUBLE PRECISION TO 12
             if cql_type_name == 'double' and self.cluster.version() >= LooseVersion('3.6'):

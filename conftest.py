@@ -484,7 +484,8 @@ def pytest_collection_modifyitems(items, config):
         # temporarily deselect tests in cqlsh_copy_tests that depend on cqlshlib,
         # until cqlshlib is Python 3 compatibile
         if item.get_marker("depends_cqlshlib"):
-            deselect_test = True
+            #deselect_test = True
+            pass
 
         # todo kjkj: deal with no_offheap_memtables mark
 
