@@ -7,8 +7,7 @@ import re
 import platform
 import copy
 import inspect
-
-from itertools import zip_longest
+import subprocess
 
 from dtest import running_in_docker, cleanup_docker_environment_before_test_execution
 
@@ -18,11 +17,18 @@ from netifaces import AF_INET
 from psutil import virtual_memory
 
 import netifaces as ni
-from ccmlib.common import validate_install_dir, is_win
+from ccmlib.common import validate_install_dir, get_version_from_build, is_win
 
 from dtest_config import DTestConfig
 from dtest_setup import DTestSetup
 from dtest_setup_overrides import DTestSetupOverrides
+
+try:
+    # Python 3 imports
+    from itertools import zip_longest
+except ImportError:
+    # Python 2 imports
+    from itertools import izip_longest as zip_longest
 
 logger = logging.getLogger(__name__)
 
@@ -372,16 +378,6 @@ def fixture_since(request, fixture_dtest_setup):
             pytest.skip(skip_msg)
 
 
-@pytest.fixture(autouse=True)
-def fixture_skip_version(request, fixture_dtest_setup):
-    marker = request.node.get_marker('skip_version')
-    if marker is not None:
-        for info in marker:
-            version_to_skip = LooseVersion(info.args[0])
-            if version_to_skip == fixture_dtest_setup.dtest_config.cassandra_version_from_build:
-                pytest.skip("Test marked not to run on version %s" % version_to_skip)
-
-
 @pytest.fixture(scope='session', autouse=True)
 def install_debugging_signal_handler():
     import faulthandler
@@ -459,11 +455,6 @@ def pytest_collection_modifyitems(items, config):
         if item.get_marker("upgrade_test"):
             if not config.getoption("--execute-upgrade-tests"):
                 deselect_test = True
-
-        # temporarily deselect tests in cqlsh_copy_tests that depend on cqlshlib,
-        # until cqlshlib is Python 3 compatibile
-        if item.get_marker("depends_cqlshlib"):
-            deselect_test = True
 
         # todo kjkj: deal with no_offheap_memtables mark
 
