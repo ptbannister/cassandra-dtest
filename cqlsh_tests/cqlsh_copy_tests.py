@@ -365,7 +365,8 @@ class TestCqlshCopy(Tester):
             sys.path = saved_path
 
     def assertCsvResultEqual(self, csv_filename, results, table_name=None,
-                             columns=None, cql_type_names=None, nullval=''):
+                             columns=None, cql_type_names=None, nullval='',
+                             sort_values=True):
         if cql_type_names is None:
             if table_name:
                 table_meta = UpdatingTableMetadataWrapper(
@@ -383,7 +384,10 @@ class TestCqlshCopy(Tester):
 
         self.maxDiff = None
         try:
-            assert csv_results == processed_results
+            if sort_values:
+                assert sorted(csv_results) == sorted(processed_results)
+            else:
+                assert csv_results == processed_results
         except Exception as e:
             if len(csv_results) != len(processed_results):
                 logger.warning("Different # of entries. CSV: " + str(len(csv_results)) +
@@ -1302,10 +1306,9 @@ class TestCqlshCopy(Tester):
                 cmd += " AND ERRFILE='{}'".format(err_file.name)
             self.run_cqlsh(cmds=cmd)
 
-            logger.debug('Sorting')
-            results = sorted(rows_to_list(self.session.execute("SELECT * FROM ks.testparseerrors")))
+            results = rows_to_list(self.session.execute("SELECT * FROM ks.testparseerrors"))
             logger.debug('Checking valid rows')
-            assert valid_rows == results
+            assert sorted(valid_rows) == sorted(results)
             logger.debug('Checking invalid rows')
             self.assertCsvResultEqual(err_file_name, invalid_rows, cql_type_names=['text', 'int', 'text'])
 
@@ -1360,10 +1363,9 @@ class TestCqlshCopy(Tester):
         cmd = "COPY ks.testwrongnumcols FROM '{}' WITH ERRFILE='{}'".format(tempfile.name, err_file.name)
         self.run_cqlsh(cmds=cmd)
 
-        logger.debug('Sorting')
-        results = sorted(rows_to_list(self.session.execute("SELECT * FROM ks.testwrongnumcols")))
+        results = rows_to_list(self.session.execute("SELECT * FROM ks.testwrongnumcols"))
         logger.debug('Checking valid rows')
-        assert valid_rows == results
+        assert sorted(valid_rows) == sorted(results)
         logger.debug('Checking invalid rows')
         self.assertCsvResultEqual(err_file.name, invalid_rows, 'testwrongnumcols', columns=['a', 'b', 'e'])
 
@@ -2036,7 +2038,7 @@ class TestCqlshCopy(Tester):
 
             exported_results = list(self.session.execute("SELECT * FROM testnumberseps"))
             self.maxDiff = None
-            assert expected_vals == list(csv_rows(tempfile.name))
+            assert sorted(expected_vals) == sorted(list(csv_rows(tempfile.name)))
 
             logger.debug('Importing from csv file: {} with thousands_sep {} and decimal_sep {}'
                   .format(tempfile.name, thousands_sep, decimal_sep))
@@ -2053,8 +2055,8 @@ class TestCqlshCopy(Tester):
             cql_type_names = [table_meta.columns[c].cql_type for c in table_meta.columns]
 
             # we format as if we were comparing to csv to overcome loss of precision in the import
-            assert self.result_to_csv_rows(exported_results == cql_type_names,
-                             self.result_to_csv_rows(imported_results, cql_type_names))
+            assert self.result_to_csv_rows(exported_results, cql_type_names) \
+                   == self.result_to_csv_rows(imported_results, cql_type_names)
 
         do_test(expected_vals_usual, ',', '.')
         do_test(expected_vals_inverted, '.', ',')
@@ -2528,7 +2530,8 @@ class TestCqlshCopy(Tester):
         run_copy_to(tempfile1)
 
         # check all records generated were exported
-        assert num_records == sum(1 for _ in open(tempfile1.name))
+        with open(tempfile1.name, encoding="utf-8", newline='') as csvfile:
+            assert num_records == sum(1 for _ in csv.reader(csvfile, quotechar='"', escapechar='\\'))
 
         # import records from the first csv file
         logger.debug('Truncating {}...'.format(stress_table))
