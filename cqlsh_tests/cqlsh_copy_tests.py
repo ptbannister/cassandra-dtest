@@ -2,12 +2,12 @@ import csv
 import datetime
 import glob
 import json
+import logging
 import os
+import pytest
 import re
 import sys
 import time
-import pytest
-import logging
 
 from collections import namedtuple
 from contextlib import contextmanager
@@ -24,9 +24,11 @@ from cassandra.murmur3 import murmur3
 from cassandra.util import SortedSet
 from ccmlib.common import is_win
 
-from cqlsh_tests.cqlsh_tools import (DummyColorMap, assert_csvs_items_equal, csv_rows,
-                         monkeypatch_driver, random_list, unmonkeypatch_driver,
-                         write_rows_to_csv)
+from cqlsh_tests.cqlsh_test_types import (Address, Datetime, ImmutableDict,
+                                          ImmutableSet, Name, UTC)
+from cqlsh_tests.cqlsh_tools import (DummyColorMap, assert_csvs_items_equal,
+                                     csv_rows, monkeypatch_driver, random_list,
+                                     unmonkeypatch_driver, write_rows_to_csv)
 from dtest import (Tester, create_ks)
 from tools.data import rows_to_list
 from tools.metadata_wrapper import (UpdatingClusterMetadataWrapper,
@@ -42,69 +44,90 @@ PARTITIONERS = {
     "order": "org.apache.cassandra.dht.OrderPreservingPartitioner"
 }
 
-class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
-    __slots__ = ()
-
-    def __repr__(self):
-        phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
-        return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
-                                                                           self.number,
-                                                                           self.street,
-                                                                           phones_str)
-class Datetime(datetime.datetime):
-
-    def _format_for_csv(self):
-        ret = self.strftime(default_time_format)
-        return round_microseconds(ret) if round_microseconds else ret
-
-    def __str__(self):
-        return self._format_for_csv()
-
-    def __repr__(self):
-        return self._format_for_csv()
-
-class ImmutableDict(frozenset):
-    """
-    Immutable dictionary implementation to represent map types.
-    We need to pass BoundStatement.bind() a dict() because it calls iteritems(),
-    except we can't create a dict with another dict as the key, hence we use a class
-    that adds iteritems to a frozen set of tuples (which is how dict are normally made
-    immutable in python).
-    Must be declared in the top level of the module to be available for pickling.
-    """
-    iteritems = frozenset.__iter__
-
-    def items(self):
-        for k, v in self.iteritems():
-            yield k, v
-
-class ImmutableSet(SortedSet):
-
-    def __repr__(self):
-        return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
-
-    def __hash__(self):
-        return hash(tuple([e for e in self]))
-
-class Name(namedtuple('Name', ('firstname', 'lastname'))):
-    __slots__ = ()
-
-    def __repr__(self):
-        return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
-
-class UTC(datetime.tzinfo):
-    """
-    A utility class to specify a UTC timezone.
-    """
-
-    def utcoffset(self, dt):
-        return datetime.timedelta(0)
-
-    def tzname(self, dt):
-        return "UTC"
-
-    def dst(self, dt):
-        return datetime.timedelta(0)
+#def maybe_quote(s):
+#    """
+#    Return a quoted string representation for strings, unicode and date time parameters,
+#    otherwise return a string representation of the parameter.
+#    """
+#    return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
+#
+#class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
+#    __slots__ = ()
+#
+#    def __repr__(self):
+#        phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
+#        return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
+#                                                                           self.number,
+#                                                                           self.street,
+#                                                                           phones_str)
+#class Datetime(datetime.datetime):
+#    """
+#    Extend standard datetime.datetime class with cql formatting.
+#    This could be cleaner if this class was declared inside TestCqlshCopy, but then pickle
+#    wouldn't have access to the class.
+#    """
+#    def __new__(cls, year, month, day, hour=0, minute=0, second=0, microsecond=0, tzinfo=None, default_time_format='%Y-%m-%d %H:%M:%S%z', round_microseconds=None):
+#        self = datetime.datetime.__new__(cls, year, month, day, hour, minute, second, microsecond, tzinfo)
+#        self.default_time_format = default_time_format
+#        if round_microseconds:
+#            self.round_microseconds = round_microseconds
+#        return self
+#
+#    def _format_for_csv(self):
+#        ret = self.strftime(self.default_time_format)
+#        return self.round_microseconds(ret) if self.round_microseconds else ret
+#
+#    def __repr__(self):
+#        return self._format_for_csv()
+#
+#    def __str__(self):
+#        return self._format_for_csv()
+#
+#class ImmutableDict(frozenset):
+#    """
+#    Immutable dictionary implementation to represent map types.
+#    We need to pass BoundStatement.bind() a dict() because it calls iteritems(),
+#    except we can't create a dict with another dict as the key, hence we use a class
+#    that adds iteritems to a frozen set of tuples (which is how dict are normally made
+#    immutable in python).
+#    Must be declared in the top level of the module to be available for pickling.
+#    """
+#    iteritems = frozenset.__iter__
+#
+#    def items(self):
+#        for k, v in self.iteritems():
+#            yield k, v
+#
+#    def __repr__(self):
+#        return '{{{}}}'.format(', '.join(['{0}: {1}'.format(maybe_quote(k), maybe_quote(v)) for k, v in self.items()]))
+#
+#class ImmutableSet(SortedSet):
+#
+#    def __repr__(self):
+#        return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
+#
+#    def __hash__(self):
+#        return hash(tuple([e for e in self]))
+#
+#class Name(namedtuple('Name', ('firstname', 'lastname'))):
+#    __slots__ = ()
+#
+#    def __repr__(self):
+#        return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
+#
+#class UTC(datetime.tzinfo):
+#    """
+#    A utility class to specify a UTC timezone.
+#    """
+#
+#    def utcoffset(self, dt):
+#        return datetime.timedelta(0)
+#
+#    def tzname(self, dt):
+#        return "UTC"
+#
+#    def dst(self, dt):
+#        return datetime.timedelta(0)
 
 
 class TestCqlshCopy(Tester):
@@ -250,7 +273,7 @@ class TestCqlshCopy(Tester):
         try:
             return self._default_time_format
         except AttributeError:
-            with self._cqlshlib():
+            with self._cqlshlib() as cqlshlib:
                 try:
                     from cqlshlib.formatting import DEFAULT_TIMESTAMP_FORMAT
                     self._default_time_format = DEFAULT_TIMESTAMP_FORMAT
@@ -295,71 +318,14 @@ class TestCqlshCopy(Tester):
                 x map<text, frozen<list<text>>>
             )''')
 
-        default_time_format = self.default_time_format
-
-        try:
-            from cqlshlib.formatting import round_microseconds
-        except ImportError:
-            round_microseconds = None
-
-#        class Datetime(datetime.datetime):
-#
-#            def _format_for_csv(self):
-#                ret = self.strftime(default_time_format)
-#                return round_microseconds(ret) if round_microseconds else ret
-#
-#            def __str__(self):
-#                return self._format_for_csv()
-#
-#            def __repr__(self):
-#                return self._format_for_csv()
-
-        def maybe_quote(s):
-            """
-            Return a quoted string representation for strings, unicode and date time parameters,
-            otherwise return a string representation of the parameter.
-            """
-            return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
-
-#        class ImmutableDict(frozenset):
-#            iteritems = frozenset.__iter__
-#
-#            def __items__(self):
-#                return [(t[0], t[1]) for t in sorted(self)]
-#
-#            def __repr__(self):
-#                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
-#                                                  for t in sorted(self)]))
-
-#        class ImmutableSet(SortedSet):
-#
-#            def __repr__(self):
-#                return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
-#
-#            def __hash__(self):
-#                return hash(tuple([e for e in self]))
-#
-#        class Name(namedtuple('Name', ('firstname', 'lastname'))):
-#            __slots__ = ()
-#
-#            def __repr__(self):
-#                return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
-#
-#        class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
-#            __slots__ = ()
-#
-#            def __repr__(self):
-#                phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
-#                return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
-#                                                                                   self.number,
-#                                                                                   self.street,
-#                                                                                   phones_str)
-
         self.session.cluster.register_user_type('ks', 'name_type', Name)
         self.session.cluster.register_user_type('ks', 'address_type', Address)
 
-        date1 = Datetime(2005, 7, 14, 12, 30, 0, 0, UTC())
-        date2 = Datetime(2005, 7, 14, 13, 30, 0, 0, UTC())
+        cassandra_dirpath = self.cluster.nodelist()[0].get_install_dir()
+        cqlshlib_dirpath = os.path.join(cassandra_dirpath, 'pylib')
+
+        date1 = Datetime(2005, 7, 14, 12, 30, 0, 0, UTC(), cqlshlib_path=cqlshlib_dirpath)
+        date2 = Datetime(2005, 7, 14, 13, 30, 0, 0, UTC(), cqlshlib_path=cqlshlib_dirpath)
 
         addr1 = Address(Name('name1', 'last1'), 1, 'street 1', ImmutableSet(['1111 2222', '3333 4444']))
         addr2 = Address(Name('name2', 'last2'), 2, 'street 2', ImmutableSet(['5555 6666', '7777 8888']))
@@ -456,14 +422,14 @@ class TestCqlshCopy(Tester):
         with self._cqlshlib() as cqlshlib:  # noqa
             from cqlshlib.formatting import format_value, format_value_default
             from cqlshlib.displaying import NO_COLOR_MAP
-        try:
-            from cqlshlib.formatting import DateTimeFormat
-            date_time_format = DateTimeFormat()
-            date_time_format.timestamp_format = time_format
-            if hasattr(date_time_format, 'milliseconds_only'):
-                date_time_format.milliseconds_only = True
-        except ImportError:
-            date_time_format = None
+            try:
+                from cqlshlib.formatting import DateTimeFormat
+                date_time_format = DateTimeFormat()
+                date_time_format.timestamp_format = time_format
+                if hasattr(date_time_format, 'milliseconds_only'):
+                    date_time_format.milliseconds_only = True
+            except ImportError:
+                date_time_format = None
 
         encoding_name = 'utf-8'  # codecs.lookup(locale.getpreferredencoding()).name
         color_map = DummyColorMap()
@@ -1848,8 +1814,10 @@ class TestCqlshCopy(Tester):
 
         def _test(prepared_statements):
             logger.debug('Importing from csv file: {name}'.format(name=tempfile.name))
-            self.run_cqlsh(cmds="COPY ks.testdatatype FROM '{}' WITH PREPAREDSTATEMENTS = {}"
+            out, err, _ = self.run_cqlsh(cmds="COPY ks.testdatatype FROM '{}' WITH PREPAREDSTATEMENTS = {}"
                            .format(tempfile.name, prepared_statements))
+            print("CSV import out: {}".format(out))
+            print("CSV import err: {}".format(err))
 
             results = list(self.session.execute("SELECT * FROM testdatatype"))
 
