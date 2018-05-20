@@ -42,6 +42,55 @@ PARTITIONERS = {
     "order": "org.apache.cassandra.dht.OrderPreservingPartitioner"
 }
 
+class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
+    __slots__ = ()
+
+    def __repr__(self):
+        phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
+        return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
+                                                                           self.number,
+                                                                           self.street,
+                                                                           phones_str)
+class Datetime(datetime.datetime):
+
+    def _format_for_csv(self):
+        ret = self.strftime(default_time_format)
+        return round_microseconds(ret) if round_microseconds else ret
+
+    def __str__(self):
+        return self._format_for_csv()
+
+    def __repr__(self):
+        return self._format_for_csv()
+
+class ImmutableDict(frozenset):
+    """
+    Immutable dictionary implementation to represent map types.
+    We need to pass BoundStatement.bind() a dict() because it calls iteritems(),
+    except we can't create a dict with another dict as the key, hence we use a class
+    that adds iteritems to a frozen set of tuples (which is how dict are normally made
+    immutable in python).
+    Must be declared in the top level of the module to be available for pickling.
+    """
+    iteritems = frozenset.__iter__
+
+    def items(self):
+        for k, v in self.iteritems():
+            yield k, v
+
+class ImmutableSet(SortedSet):
+
+    def __repr__(self):
+        return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
+
+    def __hash__(self):
+        return hash(tuple([e for e in self]))
+
+class Name(namedtuple('Name', ('firstname', 'lastname'))):
+    __slots__ = ()
+
+    def __repr__(self):
+        return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
 
 class UTC(datetime.tzinfo):
     """
@@ -253,17 +302,17 @@ class TestCqlshCopy(Tester):
         except ImportError:
             round_microseconds = None
 
-        class Datetime(datetime.datetime):
-
-            def _format_for_csv(self):
-                ret = self.strftime(default_time_format)
-                return round_microseconds(ret) if round_microseconds else ret
-
-            def __str__(self):
-                return self._format_for_csv()
-
-            def __repr__(self):
-                return self._format_for_csv()
+#        class Datetime(datetime.datetime):
+#
+#            def _format_for_csv(self):
+#                ret = self.strftime(default_time_format)
+#                return round_microseconds(ret) if round_microseconds else ret
+#
+#            def __str__(self):
+#                return self._format_for_csv()
+#
+#            def __repr__(self):
+#                return self._format_for_csv()
 
         def maybe_quote(s):
             """
@@ -272,36 +321,39 @@ class TestCqlshCopy(Tester):
             """
             return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
 
-        class ImmutableDict(frozenset):
-            iteritems = frozenset.__iter__
+#        class ImmutableDict(frozenset):
+#            iteritems = frozenset.__iter__
+#
+#            def __items__(self):
+#                return [(t[0], t[1]) for t in sorted(self)]
+#
+#            def __repr__(self):
+#                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
+#                                                  for t in sorted(self)]))
 
-            def __repr__(self):
-                return '{{{}}}'.format(', '.join(['{}: {}'.format(maybe_quote(t[0]), maybe_quote(t[1]))
-                                                  for t in sorted(self)]))
-
-        class ImmutableSet(SortedSet):
-
-            def __repr__(self):
-                return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
-
-            def __hash__(self):
-                return hash(tuple([e for e in self]))
-
-        class Name(namedtuple('Name', ('firstname', 'lastname'))):
-            __slots__ = ()
-
-            def __repr__(self):
-                return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
-
-        class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
-            __slots__ = ()
-
-            def __repr__(self):
-                phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
-                return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
-                                                                                   self.number,
-                                                                                   self.street,
-                                                                                   phones_str)
+#        class ImmutableSet(SortedSet):
+#
+#            def __repr__(self):
+#                return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
+#
+#            def __hash__(self):
+#                return hash(tuple([e for e in self]))
+#
+#        class Name(namedtuple('Name', ('firstname', 'lastname'))):
+#            __slots__ = ()
+#
+#            def __repr__(self):
+#                return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
+#
+#        class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
+#            __slots__ = ()
+#
+#            def __repr__(self):
+#                phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
+#                return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
+#                                                                                   self.number,
+#                                                                                   self.street,
+#                                                                                   phones_str)
 
         self.session.cluster.register_user_type('ks', 'name_type', Name)
         self.session.cluster.register_user_type('ks', 'address_type', Address)
