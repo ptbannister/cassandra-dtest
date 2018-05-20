@@ -49,7 +49,7 @@ class TestCqlsh(Tester):
         """
         @jira_ticket CASSANDRA-10066
         Checks that cqlsh is compliant with pycodestyle (formally known as pep8) with the following command:
-        pycodestyle --ignore E501,E402,E731 pylib/cqlshlib/*.py bin/cqlsh.py
+        pycodestyle --ignore E501,E402,E731,W503 pylib/cqlshlib/*.py bin/cqlsh.py
         """
         cluster = self.cluster
 
@@ -62,7 +62,7 @@ class TestCqlsh(Tester):
         cqlshlib_paths = os.listdir(cqlshlib_path)
         cqlshlib_paths = [os.path.join(cqlshlib_path, x) for x in cqlshlib_paths if '.py' in x and '.pyc' not in x]
 
-        cmds = ['pycodestyle', '--ignore', 'E501,E402,E731', cqlsh_path] + cqlshlib_paths
+        cmds = ['pycodestyle', '--ignore', 'E501,E402,E731,W503', cqlsh_path] + cqlshlib_paths
 
         logger.debug(cmds)
 
