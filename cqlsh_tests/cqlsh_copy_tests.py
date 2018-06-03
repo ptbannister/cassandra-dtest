@@ -1816,8 +1816,6 @@ class TestCqlshCopy(Tester):
             logger.debug('Importing from csv file: {name}'.format(name=tempfile.name))
             out, err, _ = self.run_cqlsh(cmds="COPY ks.testdatatype FROM '{}' WITH PREPAREDSTATEMENTS = {}"
                            .format(tempfile.name, prepared_statements))
-            print("CSV import out: {}".format(out))
-            print("CSV import err: {}".format(err))
 
             results = list(self.session.execute("SELECT * FROM testdatatype"))
 

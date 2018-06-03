@@ -40,6 +40,14 @@ class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
                                                                            self.number,
                                                                            self.street,
                                                                            phones_str)
+
+    def __str__(self):
+        phones_str = "{{{}}}".format(', '.join(maybe_quote(p) for p in sorted(self.phones)))
+        return "{{name: {}, number: {}, street: '{}', phones: {}}}".format(self.name,
+                                                                           self.number,
+                                                                           self.street,
+                                                                           phones_str)
+
 class Datetime(datetime.datetime):
     """
     Extend standard datetime.datetime class with cql formatting.
@@ -83,11 +91,14 @@ class ImmutableDict(frozenset):
             yield k, v
 
     def __repr__(self):
-        return '{{{}}}'.format(', '.join(['{0}: {1}'.format(maybe_quote(k), maybe_quote(v)) for k, v in self.items()]))
+        return '{{{}}}'.format(', '.join(['{0}: {1}'.format(maybe_quote(k), maybe_quote(v)) for k, v in sorted(self.items())]))
 
 class ImmutableSet(SortedSet):
 
     def __repr__(self):
+        return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
+
+    def __str__(self):
         return '{{{}}}'.format(', '.join([maybe_quote(t) for t in sorted(self._items)]))
 
     def __hash__(self):
@@ -97,6 +108,9 @@ class Name(namedtuple('Name', ('firstname', 'lastname'))):
     __slots__ = ()
 
     def __repr__(self):
+        return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
+
+    def __str__(self):
         return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
 
 class UTC(datetime.tzinfo):
