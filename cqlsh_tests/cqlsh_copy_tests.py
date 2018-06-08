@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import csv
 import datetime
 import glob
@@ -24,11 +26,11 @@ from cassandra.murmur3 import murmur3
 from cassandra.util import SortedSet
 from ccmlib.common import is_win
 
-from cqlsh_tests.cqlsh_test_types import (Address, Datetime, ImmutableDict,
-                                          ImmutableSet, Name, UTC)
-from cqlsh_tests.cqlsh_tools import (DummyColorMap, assert_csvs_items_equal,
-                                     csv_rows, monkeypatch_driver, random_list,
-                                     unmonkeypatch_driver, write_rows_to_csv)
+from .cqlsh_test_types import (Address, Datetime, ImmutableDict,
+                               ImmutableSet, Name, UTC)
+from .cqlsh_tools import (DummyColorMap, assert_csvs_items_equal,
+                          csv_rows, monkeypatch_driver, random_list,
+                          unmonkeypatch_driver, write_rows_to_csv)
 from dtest import (Tester, create_ks)
 from tools.data import rows_to_list
 from tools.metadata_wrapper import (UpdatingClusterMetadataWrapper,
