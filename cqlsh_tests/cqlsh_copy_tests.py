@@ -3,6 +3,7 @@
 import csv
 import datetime
 import glob
+import io
 import json
 import logging
 import os
@@ -588,7 +589,7 @@ class TestCqlshCopy(Tester):
         logger.debug('Exporting to csv file: {name}'.format(name=tempfile.name))
         cmds = "COPY ks.testdelimiter TO '{name}'".format(name=tempfile.name)
         cmds += " WITH DELIMITER = '{d}'".format(d=delimiter)
-        self.run_cqlsh(cmds=cmds)
+        cqlsh_out, cqlsh_err, _ = self.run_cqlsh(cmds=cmds)
 
         self.assertCsvResultEqual(tempfile.name, results, 'testdelimiter')
 
@@ -909,7 +910,7 @@ class TestCqlshCopy(Tester):
         logger.debug('Exporting to csv file: {name}'.format(name=tempfile.name))
         cmds = "COPY ks.testdatetimeformat TO '{name}'".format(name=tempfile.name)
         cmds += " WITH DATETIMEFORMAT = '{}'".format(format)
-        self.run_cqlsh(cmds=cmds)
+        copy_to_out, copy_to_err, _ = self.run_cqlsh(cmds=cmds)
 
         with open(tempfile.name, 'r') as csvfile:
             csv_values = list(csv.reader(csvfile))
@@ -921,7 +922,7 @@ class TestCqlshCopy(Tester):
         self.session.execute("TRUNCATE testdatetimeformat")
         cmds = "COPY ks.testdatetimeformat FROM '{name}'".format(name=tempfile.name)
         cmds += " WITH DATETIMEFORMAT = '{}'".format(format)
-        self.run_cqlsh(cmds=cmds)
+        copy_from_out, copy_from_err, _ = self.run_cqlsh(cmds=cmds)
 
         table_meta = UpdatingTableMetadataWrapper(self.session.cluster,
                                                   ks_name=self.ks,
@@ -1889,8 +1890,8 @@ class TestCqlshCopy(Tester):
                                        .format(tempfile.name, trueval, falseval))
             if invalid:
                 expected_err = "Invalid boolean styles [{}, {}]".format(
-                    ', '.join(["'{}'".format(s.strip()) for s in trueval.split(',')]),
-                    ', '.join(["'{}'".format(s.strip()) for s in falseval.split(',')]))
+                    ', '.join(["u'{}'".format(s.strip()) for s in trueval.split(',')]),
+                    ', '.join(["u'{}'".format(s.strip()) for s in falseval.split(',')]))
                 assert expected_err in err
                 return
 
@@ -2550,7 +2551,8 @@ class TestCqlshCopy(Tester):
         run_copy_to(tempfile1)
 
         # check all records generated were exported
-        with open(tempfile1.name, encoding="utf-8", newline='') as csvfile:
+#        with open(tempfile1.name, encoding="utf-8", newline='') as csvfile:
+        with io.open(tempfile1.name, encoding="utf-8", newline='') as csvfile:
             assert num_records == sum(1 for _ in csv.reader(csvfile, quotechar='"', escapechar='\\'))
 
         # import records from the first csv file
