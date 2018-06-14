@@ -1,10 +1,13 @@
 # coding=utf-8
 
+from __future__ import unicode_literals
+
 import binascii
 import csv
 import datetime
 import os
 import re
+import six
 import subprocess
 import sys
 import logging
@@ -53,7 +56,7 @@ class TestCqlsh(Tester):
         """
         cluster = self.cluster
 
-        if cluster.version() < '2.2':
+        if cluster.version() < LooseVersion('2.2'):
             cqlsh_path = os.path.join(cluster.get_install_dir(), 'bin', 'cqlsh')
         else:
             cqlsh_path = os.path.join(cluster.get_install_dir(), 'bin', 'cqlsh.py')
@@ -299,7 +302,9 @@ class TestCqlsh(Tester):
             'I can eat glass and it does not hurt me': 1400
         })
 
-        output, err = self.run_cqlsh(node, 'use testks; SELECT * FROM varcharmaptable', ['--encoding=utf-8'])
+        output, _ = self.run_cqlsh(node, 'use testks; SELECT * FROM varcharmaptable', ['--encoding=utf-8'])
+        if six.PY2:
+            output = output.decode(encoding='utf-8')
 
         assert output.count('Можам да јадам стакло, а не ме штета.') == 16
         assert output.count(' ⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑') == 16
@@ -312,7 +317,7 @@ class TestCqlsh(Tester):
 
         node1, = self.cluster.nodelist()
 
-        node1.run_cqlsh(cmds="""create KEYSPACE testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+        cmds = """create KEYSPACE testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
 use testks;
 
 CREATE TABLE varcharmaptable (
@@ -423,7 +428,11 @@ INSERT INTO varcharmaptable (varcharkey, varcharvarintmap ) VALUES      ('᚛᚛
 UPDATE varcharmaptable SET varcharvarintmap = varcharvarintmap + {'Vitrum edere possum, mihi non nocet.':20000} WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜';
 
 UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet.'] = 1010010101020400204143243 WHERE varcharkey= '᚛᚛ᚉᚑᚅᚔᚉᚉᚔᚋ ᚔᚈᚔ ᚍᚂᚐᚅᚑ ᚅᚔᚋᚌᚓᚅᚐ᚜'
-        """)
+        """
+        if six.PY2:
+            cmds = cmds.encode(encoding='utf-8')
+
+        node1.run_cqlsh(cmds=cmds)
 
         self.verify_glass(node1)
 
@@ -448,7 +457,11 @@ UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet
 
         node1, = self.cluster.nodelist()
 
-        output, err, _ = node1.run_cqlsh(cmds="ä;")
+        cmds = "ä;"
+        if six.PY2:
+            cmds = cmds.encode(encoding='utf-8')
+        _, err, _ = node1.run_cqlsh(cmds=cmds)
+
         assert 'Invalid syntax' in err
         assert 'ä' in err
 
@@ -464,7 +477,9 @@ UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet
         node1, = self.cluster.nodelist()
 
         cmd = '''create keyspace "ä" WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};'''
-        output, err, _ = node1.run_cqlsh(cmds=cmd, cqlsh_options=["--debug"])
+        if six.PY2:
+            cmd = cmd.encode(encoding='utf-8')
+        _, err, _ = node1.run_cqlsh(cmds=cmd, cqlsh_options=["--debug"])
 
         assert '"ä" is not a valid keyspace name' in err
 
@@ -477,7 +492,7 @@ UPDATE varcharmaptable SET varcharvarintmap['Vitrum edere possum, mihi non nocet
 
         node1, = self.cluster.nodelist()
 
-        node1.run_cqlsh(cmds="""create keyspace  CASSANDRA_7196 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1} ;
+        cmds = """create keyspace  CASSANDRA_7196 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1} ;
 
 use CASSANDRA_7196;
 
@@ -532,9 +547,17 @@ INSERT INTO has_all_types (num, intcol, asciicol, bigintcol, blobcol, booleancol
                            timestampcol, uuidcol, varcharcol, varintcol)
 VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDecimal(0x),
         blobAsDouble(0x), blobAsFloat(0x), '', blobAsTimestamp(0x), blobAsUuid(0x), '',
-        blobAsVarint(0x))""")
+        blobAsVarint(0x))"""
+        if six.PY2:
+            cmds = cmds.encode(encoding='utf-8')
 
-        output, err = self.run_cqlsh(node1, "select intcol, bigintcol, varintcol from CASSANDRA_7196.has_all_types where num in (0, 1, 2, 3, 4)")
+        node1.run_cqlsh(cmds=cmds)
+
+        select_cmd = "select intcol, bigintcol, varintcol from CASSANDRA_7196.has_all_types where num in (0, 1, 2, 3, 4)"
+        if six.PY2:
+            select_cmd = select_cmd.encode(encoding='utf-8')
+        output, err = self.run_cqlsh(node1, cmds=select_cmd)
+
         if common.is_win():
             output = output.replace('\r', '')
 
@@ -630,7 +653,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         conn.execute("CREATE USER user1 WITH PASSWORD 'user1'")
         conn.execute("GRANT ALL ON ks.t1 TO user1")
 
-        if self.cluster.version() >= '4.0':
+        if self.cluster.version() >= LooseVersion('4.0'):
             self.verify_output("LIST USERS", node1, """
  name      | super | datacenters
 -----------+-------+-------------
@@ -639,7 +662,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 
 (2 rows)
 """)
-        elif self.cluster.version() >= '2.2':
+        elif self.cluster.version() >= LooseVersion('2.2'):
             self.verify_output("LIST USERS", node1, """
  name      | super
 -----------+-------
@@ -658,7 +681,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 (2 rows)
 """)
 
-        if self.cluster.version() >= '2.2':
+        if self.cluster.version() >= LooseVersion('2.2'):
             self.verify_output("LIST ALL PERMISSIONS OF user1", node1, """
  role  | username | resource      | permission
 -------+----------+---------------+------------
@@ -2086,7 +2109,7 @@ class TestCqlLogin(Tester):
         create_cf(self.session, 'ks1table')
         self.session.execute("CREATE USER user1 WITH PASSWORD 'changeme';")
 
-        if self.cluster.version() >= '2.2':
+        if self.cluster.version() >= LooseVersion('2.2'):
             query = '''
                     LOGIN user1 'changeme';
                     CREATE USER user2 WITH PASSWORD 'fail' SUPERUSER;

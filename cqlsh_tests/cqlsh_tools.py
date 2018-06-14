@@ -23,7 +23,7 @@ def csv_rows(filename, delimiter=None):
         reader_opts['delimiter'] = delimiter
     with open(filename, 'r') as csvfile:
         for row in csv.reader(csvfile, **reader_opts):
-            yield row
+            yield [unicode(field, encoding='utf-8') for field in row] if six.PY2 else row
 
 
 def assert_csvs_items_equal(filename1, filename2):

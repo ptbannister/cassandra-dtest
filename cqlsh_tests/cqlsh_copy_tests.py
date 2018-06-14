@@ -589,7 +589,7 @@ class TestCqlshCopy(Tester):
         logger.debug('Exporting to csv file: {name}'.format(name=tempfile.name))
         cmds = "COPY ks.testdelimiter TO '{name}'".format(name=tempfile.name)
         cmds += " WITH DELIMITER = '{d}'".format(d=delimiter)
-        cqlsh_out, cqlsh_err, _ = self.run_cqlsh(cmds=cmds)
+        self.run_cqlsh(cmds=cmds)
 
         self.assertCsvResultEqual(tempfile.name, results, 'testdelimiter')
 
