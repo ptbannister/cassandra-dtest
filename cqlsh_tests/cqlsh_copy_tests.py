@@ -1890,8 +1890,8 @@ class TestCqlshCopy(Tester):
                                        .format(tempfile.name, trueval, falseval))
             if invalid:
                 expected_err = "Invalid boolean styles [{}, {}]".format(
-                    ', '.join(["u'{}'".format(s.strip()) for s in trueval.split(',')]),
-                    ', '.join(["u'{}'".format(s.strip()) for s in falseval.split(',')]))
+                    ', '.join(["'{}'".format(s.strip()) for s in trueval.split(',')]),
+                    ', '.join(["'{}'".format(s.strip()) for s in falseval.split(',')]))
                 assert expected_err in err
                 return
 
