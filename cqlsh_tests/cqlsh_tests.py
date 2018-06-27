@@ -731,21 +731,21 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         assert "system" in output
 
         # Describe keyspace
-        self.execute(cql="DESCRIBE KEYSPACE test", expected_output=self.get_keyspace_output())
-        self.execute(cql="DESCRIBE test", expected_output=self.get_keyspace_output())
+        self.execute(cql="DESCRIBE KEYSPACE test", expected_output=self.get_keyspace_output(), output_is_ordered=False)
+        self.execute(cql="DESCRIBE test", expected_output=self.get_keyspace_output(), output_is_ordered=False)
         self.execute(cql="DESCRIBE test2", expected_err="'test2' not found in keyspaces")
-        self.execute(cql="USE test; DESCRIBE KEYSPACE", expected_output=self.get_keyspace_output())
+        self.execute(cql="USE test; DESCRIBE KEYSPACE", expected_output=self.get_keyspace_output(), output_is_ordered=False)
 
         # Describe table
-        self.execute(cql="DESCRIBE TABLE test.test", expected_output=self.get_test_table_output())
-        self.execute(cql="DESCRIBE TABLE test.users", expected_output=self.get_users_table_output())
-        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output())
-        self.execute(cql="DESCRIBE test.users", expected_output=self.get_users_table_output())
+        self.execute(cql="DESCRIBE TABLE test.test", expected_output=self.get_test_table_output(), output_is_ordered=False)
+        self.execute(cql="DESCRIBE TABLE test.users", expected_output=self.get_users_table_output(), output_is_ordered=False)
+        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output(), output_is_ordered=False)
+        self.execute(cql="DESCRIBE test.users", expected_output=self.get_users_table_output(), output_is_ordered=False)
         self.execute(cql="DESCRIBE test.users2", expected_err="'users2' not found in keyspace 'test'")
-        self.execute(cql="USE test; DESCRIBE TABLE test", expected_output=self.get_test_table_output())
-        self.execute(cql="USE test; DESCRIBE TABLE users", expected_output=self.get_users_table_output())
-        self.execute(cql="USE test; DESCRIBE test", expected_output=self.get_keyspace_output())
-        self.execute(cql="USE test; DESCRIBE users", expected_output=self.get_users_table_output())
+        self.execute(cql="USE test; DESCRIBE TABLE test", expected_output=self.get_test_table_output(), output_is_ordered=False)
+        self.execute(cql="USE test; DESCRIBE TABLE users", expected_output=self.get_users_table_output(), output_is_ordered=False)
+        self.execute(cql="USE test; DESCRIBE test", expected_output=self.get_keyspace_output(), output_is_ordered=False)
+        self.execute(cql="USE test; DESCRIBE users", expected_output=self.get_users_table_output(), output_is_ordered=False)
         self.execute(cql="USE test; DESCRIBE users2", expected_err="'users2' not found in keyspace 'test'")
 
         # Describe index
@@ -773,7 +773,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 CREATE INDEX myindex ON test.users (age);
                 CREATE INDEX "QuotedNameIndex" on test.users (firstname)
                 """)
-        self.execute(cql="DESCRIBE test.users", expected_output=self.get_users_table_output())
+        self.execute(cql="DESCRIBE test.users", expected_output=self.get_users_table_output(), output_is_ordered=False)
         self.execute(cql='DESCRIBE test.myindex', expected_output=self.get_index_output('myindex', 'test', 'users', 'age'))
 
         # Drop index and recreate
@@ -790,10 +790,10 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         # Prior to 3.0 the index would have been automatically dropped, but now we need to explicitly do that.
         self.execute(cql='DROP INDEX test.test_val_idx')
         self.execute(cql='ALTER TABLE test.test DROP val')
-        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output(has_val=False, has_val_idx=False))
+        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output(has_val=False, has_val_idx=False), output_is_ordered=False)
         self.execute(cql='DESCRIBE test.test_val_idx', expected_err="'test_val_idx' not found in keyspace 'test'")
         self.execute(cql='ALTER TABLE test.test ADD val text')
-        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output(has_val=True, has_val_idx=False))
+        self.execute(cql="DESCRIBE test.test", expected_output=self.get_test_table_output(has_val=True, has_val_idx=False), output_is_ordered=False)
         self.execute(cql='DESCRIBE test.test_val_idx', expected_err="'test_val_idx' not found in keyspace 'test'")
 
     def test_describe_describes_non_default_compaction_parameters(self):
@@ -858,13 +858,14 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         self.execute(cql='USE test; DESCRIBE "users_by_state"', expected_output=self.get_users_by_state_mv_output())
 
     def get_keyspace_output(self):
-        return ("CREATE KEYSPACE test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;" +
-                self.get_test_table_output() +
-                self.get_users_table_output())
+        return ["CREATE KEYSPACE test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;",
+                self.get_test_table_output(),
+                self.get_users_table_output()]
 
     def get_test_table_output(self, has_val=True, has_val_idx=True):
+        create_table = None
         if has_val:
-            ret = """
+            create_table = """
                 CREATE TABLE test.test (
                     id int,
                     col int,
@@ -872,7 +873,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 PRIMARY KEY (id, col)
                 """
         else:
-            ret = """
+            create_table = """
                 CREATE TABLE test.test (
                     id int,
                     col int,
@@ -880,7 +881,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 """
 
         if self.cluster.version() >= LooseVersion('4.0'):
-            ret += """
+            create_table += """
         ) WITH CLUSTERING ORDER BY (col ASC)
             AND bloom_filter_fp_chance = 0.01
             AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}
@@ -898,7 +899,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND speculative_retry = '99p';
         """
         elif self.cluster.version() >= LooseVersion('3.9'):
-            ret += """
+            create_table += """
         ) WITH CLUSTERING ORDER BY (col ASC)
             AND bloom_filter_fp_chance = 0.01
             AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}
@@ -916,7 +917,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND speculative_retry = '99PERCENTILE';
         """
         elif self.cluster.version() >= LooseVersion('3.0'):
-            ret += """
+            create_table += """
         ) WITH CLUSTERING ORDER BY (col ASC)
             AND bloom_filter_fp_chance = 0.01
             AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}
@@ -934,7 +935,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND speculative_retry = '99PERCENTILE';
         """
         else:
-            ret += """
+            create_table += """
         ) WITH CLUSTERING ORDER BY (col ASC)
             AND bloom_filter_fp_chance = 0.01
             AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
@@ -952,22 +953,18 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         """
 
         col_idx_def = self.get_index_output('test_col_idx', 'test', 'test', 'col')
-
+        expected_output = [create_table, col_idx_def]
         if has_val_idx:
-            val_idx_def = self.get_index_output('test_val_idx', 'test', 'test', 'val')
-            if self.cluster.version() >= LooseVersion('2.2'):
-                return ret + "\n" + val_idx_def + "\n" + col_idx_def
-            else:
-                return ret + "\n" + col_idx_def + "\n" + val_idx_def
-        else:
-            return ret + "\n" + col_idx_def
+            expected_output.append(self.get_index_output('test_val_idx', 'test', 'test', 'val'))
+        return expected_output
 
     def get_users_table_output(self):
         quoted_index_output = self.get_index_output('"QuotedNameIndex"', 'test', 'users', 'firstname')
         myindex_output = self.get_index_output('myindex', 'test', 'users', 'age')
+        create_table = None
 
         if self.cluster.version() >= LooseVersion('4.0'):
-            return """
+            create_table = """
         CREATE TABLE test.users (
             userid text PRIMARY KEY,
             age int,
@@ -987,9 +984,9 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND min_index_interval = 128
             AND read_repair_chance = 0.0
             AND speculative_retry = '99p';
-        """ + quoted_index_output + "\n" + myindex_output
+        """
         elif self.cluster.version() >= LooseVersion('3.9'):
-            return """
+            create_table =  """
         CREATE TABLE test.users (
             userid text PRIMARY KEY,
             age int,
@@ -1009,9 +1006,9 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND min_index_interval = 128
             AND read_repair_chance = 0.0
             AND speculative_retry = '99PERCENTILE';
-        """ + quoted_index_output + "\n" + myindex_output
+        """
         elif self.cluster.version() >= LooseVersion('3.0'):
-            return """
+            create_table = """
         CREATE TABLE test.users (
             userid text PRIMARY KEY,
             age int,
@@ -1031,9 +1028,9 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND min_index_interval = 128
             AND read_repair_chance = 0.0
             AND speculative_retry = '99PERCENTILE';
-        """ + quoted_index_output + "\n" + myindex_output
+        """
         else:
-            return """
+            create_table = """
         CREATE TABLE test.users (
             userid text PRIMARY KEY,
             age int,
@@ -1052,8 +1049,8 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
             AND min_index_interval = 128
             AND read_repair_chance = 0.0
             AND speculative_retry = '99.0PERCENTILE';
-        """ + (quoted_index_output + "\n" + myindex_output if self.cluster.version() >= LooseVersion('2.2') else
-               myindex_output + "\n" + quoted_index_output)
+        """
+        return [create_table, quoted_index_output, myindex_output]
 
     def get_index_output(self, index, ks, table, col):
         # a quoted index name (e.g. "FooIndex") is only correctly echoed by DESCRIBE
@@ -1139,7 +1136,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
                 AND speculative_retry = '99PERCENTILE';
                """
 
-    def execute(self, cql, expected_output=None, expected_err=None, env_vars=None):
+    def execute(self, cql, expected_output=None, expected_err=None, env_vars=None, output_is_ordered=True, err_is_ordered=True):
         logger.debug(cql)
 
         node1, = self.cluster.nodelist()
@@ -1148,13 +1145,19 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         if err:
             if expected_err:
                 err = err[10:]  # strip <stdin>:2:
-                self.check_response(err, expected_err)
+                if err_is_ordered:
+                    self.check_response(err, expected_err)
+                else:
+                    self.check_response_unordered(err, expected_err)
                 return
             else:
                 assert False, err
 
         if expected_output:
-            self.check_response(output, expected_output)
+            if output_is_ordered:
+                self.check_response(output, expected_output)
+            else:
+                self.check_response_unordered(output, expected_output)
 
         return output
 
@@ -1162,6 +1165,31 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         lines = [s.strip() for s in response.split("\n") if s.strip()]
         expected_lines = [s.strip() for s in expected_response.split("\n") if s.strip()]
         assert expected_lines == lines
+
+    def check_response_unordered(self, response, expected_response):
+        """
+        Assert that a response matches a concatenation of expected
+        strings in an arbitrary order. This is useful for features
+        such as DESCRIBE KEYSPACE, where output is arbitrarily
+        ordered.
+        expected_response should be a list of strings that form the
+        expected output.
+        """
+
+        def consume_expected(observed, expected):
+            unconsumed = observed
+            if isinstance(expected, list):
+                for unit in expected:
+                    unconsumed = consume_expected(unconsumed, unit)
+            else:
+                expected_stripped = "\n".join([s.strip() for s in expected.split("\n") if s.strip()])
+                assert unconsumed.find(expected_stripped) >= 0
+                unconsumed = unconsumed.replace(expected_stripped, "")
+            return unconsumed
+
+        stripped_response = "\n".join([s.strip() for s in response.split("\n") if s.strip()])
+        unconsumed = consume_expected(stripped_response, expected_response)
+        assert unconsumed.replace("\n", "") == ""
 
     def strip_read_repair_chance(self, describe_statement):
         """
