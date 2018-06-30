@@ -2080,6 +2080,34 @@ class TestCqlshSmoke(Tester):
         self.session.cluster.refresh_schema_metadata()
         return [table.name for table in list(self.session.cluster.metadata.keyspaces[keyspace].tables.values())]
 
+    def test_select_cjk(self):
+        """Confirm cqlsh outputs CJK text properly"""
+        create_ks(self.session, 'ks', 1)
+        create_cf(self.session, 'iroha', key_type='int', columns={'manyogana': 'text', 'modern': 'text', 'kana': 'text'})
+
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (1, '以呂波耳本部止', '色は匂へど', 'いろはにほへと')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (2, '千利奴流乎', '散りぬるを', 'ちりぬるを')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (3, '和加餘多連曽', '我が世誰ぞ', 'わかよたれそ')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (4, '津祢那良牟', '常ならん', 'つねならむ')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (5, '有為能於久耶万', '有為の奥山', 'うゐのおくやま')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (6, '計不己衣天阿', '今日越えて', 'けふこえて')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (7, '佐伎喩女美之', '浅き夢見じ', 'あさきゆめみし')")
+        self.session.execute("INSERT INTO iroha (key, manyogana, modern, kana) VALUES (8, '恵比毛勢須', '酔ひもせず', 'ゑひもせす')")
+
+        stdout, _, _ = self.node1.run_cqlsh('SELECT key, manyogana, modern, kana FROM ks.iroha')
+        stdout_lines_sorted = '\n'.join(sorted(stdout.split('\n')))
+        expected = """
+   1 | 以呂波耳本部止 | 色は匂へど | いろはにほへと
+   2 |     千利奴流乎 | 散りぬるを |     ちりぬるを
+   3 |   和加餘多連曽 | 我が世誰ぞ |   わかよたれそ
+   4 |     津祢那良牟 |   常ならん |     つねならむ
+   5 | 有為能於久耶万 | 有為の奥山 | うゐのおくやま
+   6 |   計不己衣天阿 | 今日越えて |     けふこえて
+   7 |   佐伎喩女美之 | 浅き夢見じ | あさきゆめみし
+   8 |     恵比毛勢須 | 酔ひもせず |     ゑひもせす
+"""
+        assert stdout_lines_sorted.find(expected) >= 0
+
 
 class TestCqlLogin(Tester):
     """
