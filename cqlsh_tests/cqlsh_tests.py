@@ -2080,7 +2080,7 @@ class TestCqlshSmoke(Tester):
         self.session.cluster.refresh_schema_metadata()
         return [table.name for table in list(self.session.cluster.metadata.keyspaces[keyspace].tables.values())]
 
-    def test_select_cjk(self):
+    def test_cjk_output(self):
         """Confirm cqlsh outputs CJK text properly"""
         create_ks(self.session, 'ks', 1)
         create_cf(self.session, 'iroha', key_type='int', columns={'manyogana': 'text', 'modern': 'text', 'kana': 'text'})
