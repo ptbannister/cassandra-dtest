@@ -721,13 +721,14 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 (6 rows)
 """)
 
-    def test_describe(self, fixture_dtest_setup_overrides):
+    def test_describe(self):
         """
         @jira_ticket CASSANDRA-7814
         """
         self.cluster.populate(1)
         self.cluster.start(wait_for_binary_proto=True)
         node1, = self.cluster.nodelist()
+
         self.execute(
             cql="""
                 CREATE KEYSPACE test WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1};
@@ -823,6 +824,69 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
         stdout, _ = self.run_cqlsh(node, describe_cmd)
         assert "'min_threshold': '10'" in stdout
         assert "'max_threshold': '100'" in stdout
+
+    def test_describe_functions(self, fixture_dtest_setup_overrides):
+        """Test DESCRIBE statements for functions and aggregate functions"""
+        self.cluster.populate(1)
+        self.cluster.start(wait_for_binary_proto=True)
+
+        create_ks_statement = "CREATE KEYSPACE test WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}"
+        create_function_statement = """
+CREATE FUNCTION test.some_function(arg int)
+    RETURNS NULL ON NULL INPUT
+    RETURNS int
+    LANGUAGE java
+    AS $$ return arg;
+    $$"""
+        create_aggregate_dependencies_statement = """
+CREATE OR REPLACE FUNCTION test.average_state(state tuple<int,bigint>, val int)
+    CALLED ON NULL INPUT
+    RETURNS tuple<int,bigint>
+    LANGUAGE java
+    AS $$ if (val != null) {
+            state.setInt(0, state.getInt(0)+1);
+            state.setLong(1, state.getLong(1)+val.intValue());
+        }
+        return state;
+    $$;
+CREATE OR REPLACE FUNCTION test.average_final (state tuple<int,bigint>)
+    CALLED ON NULL INPUT
+    RETURNS double
+    LANGUAGE java
+    AS $$
+        double r = 0;
+        if (state.getInt(0) == 0) return null;
+        r = state.getLong(1);
+        r /= state.getInt(0);
+        return Double.valueOf(r);
+    $$
+"""
+        create_aggregate_statement = """
+CREATE OR REPLACE AGGREGATE test.average(int)
+    SFUNC average_state
+    STYPE tuple<int,bigint>
+    FINALFUNC average_final
+    INITCOND (0, 0)
+"""
+        # the expected output of a DESCRIBE AGGREGATE statement
+        # does not look like a valid CREATE AGGREGATE statement
+        describe_aggregate_expected = """
+CREATE AGGREGATE test.average(int)
+    SFUNC average_state
+    STYPE frozen<tuple<int, bigint>>
+    FINALFUNC average_final
+    INITCOND (0, 0);
+"""
+
+        # create keyspace, scalar function, and aggregate function
+        self.execute(cql=create_ks_statement)
+        self.execute(cql=create_function_statement)
+        self.execute(cql=create_aggregate_dependencies_statement)
+        self.execute(cql=create_aggregate_statement)
+        # describe scalar functions
+        self.execute(cql='DESCRIBE FUNCTION test.some_function', expected_output='{};'.format(create_function_statement))
+        # describe aggregate functions
+        self.execute(cql='DESCRIBE AGGREGATE test.average', expected_output=describe_aggregate_expected)
 
     def test_describe_on_non_reserved_keywords(self):
         """
