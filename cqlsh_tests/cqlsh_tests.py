@@ -888,6 +888,34 @@ CREATE AGGREGATE test.average(int)
         # describe aggregate functions
         self.execute(cql='DESCRIBE AGGREGATE test.average', expected_output=describe_aggregate_expected)
 
+    def test_describe_types(self):
+        """Test DESCRIBE statements for user defined datatypes"""
+        self.cluster.populate(1)
+        self.cluster.start(wait_for_binary_proto=True)
+
+        create_ks_statement = "CREATE KEYSPACE test WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}"
+        create_name_type_statement = """
+CREATE TYPE test.name_type (
+    firstname text,
+    lastname text
+)"""
+        create_address_type_statement = """
+CREATE TYPE test.address_type (
+    name frozen<name_type>, 
+    number int,
+    street text,
+    phones set<text>
+)"""
+
+        # create test keyspace and some user defined types
+        self.execute(cql=create_ks_statement)
+        self.execute(create_name_type_statement)
+        self.execute(create_address_type_statement)
+
+        # DESCRIBE user defined types
+        self.execute(cql='DESCRIBE TYPE test.name_type', expected_output='{};'.format(create_name_type_statement))
+        self.execute(cql='DESCRIBE TYPE test.address_type', expected_output='{};'.format(create_address_type_statement))
+
     def test_describe_on_non_reserved_keywords(self):
         """
         @jira_ticket CASSANDRA-9232
