@@ -24,15 +24,29 @@ from cassandra.query import BatchStatement, BatchType
 from ccmlib import common
 
 from .cqlsh_tools import monkeypatch_driver, unmonkeypatch_driver
-from dtest import Tester, create_ks, create_cf
+from dtest import CASSANDRA_VERSION_FROM_BUILD, Tester, create_ks, create_cf
+from dtest_setup_overrides import DTestSetupOverrides
 from tools.assertions import assert_all, assert_none
 from tools.data import create_c1c2_table, insert_c1c2, rows_to_list
+from tools.misc import ImmutableMapping
 
 since = pytest.mark.since
 logger = logging.getLogger(__name__)
 
 
 class TestCqlsh(Tester):
+
+    # override cluster options to enable user defined functions
+    # currently only needed for test_describe
+    @pytest.fixture
+    def fixture_dtest_setup_overrides(self):
+        dtest_setup_overrides = DTestSetupOverrides()
+        if CASSANDRA_VERSION_FROM_BUILD >= LooseVersion('3.0'):
+            dtest_setup_overrides.cluster_options = ImmutableMapping({'enable_user_defined_functions': 'true',
+                                                'enable_scripted_user_defined_functions': 'true'})
+        else:
+            dtest_setup_overrides.cluster_options = ImmutableMapping({'enable_user_defined_functions': 'true'})
+        return dtest_setup_overrides
 
     @classmethod
     def setUpClass(cls):
@@ -707,7 +721,7 @@ VALUES (4, blobAsInt(0x), '', blobAsBigint(0x), 0x, blobAsBoolean(0x), blobAsDec
 (6 rows)
 """)
 
-    def test_describe(self):
+    def test_describe(self, fixture_dtest_setup_overrides):
         """
         @jira_ticket CASSANDRA-7814
         """
