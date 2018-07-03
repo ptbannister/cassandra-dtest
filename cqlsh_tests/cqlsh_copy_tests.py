@@ -339,7 +339,6 @@ class TestCqlshCopy(Tester):
     def make_csv_formatter(self, time_format, nullval):
         with self._cqlshlib() as cqlshlib:  # noqa
             from cqlshlib.formatting import format_value, format_value_default
-            from cqlshlib.displaying import NO_COLOR_MAP
             try:
                 from cqlshlib.formatting import DateTimeFormat
                 date_time_format = DateTimeFormat()

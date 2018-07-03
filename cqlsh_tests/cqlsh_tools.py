@@ -7,7 +7,6 @@ import six
 import cassandra
 
 from cassandra.cluster import ResultSet
-from typing import List
 
 
 class DummyColorMap(object):
@@ -99,6 +98,7 @@ def unmonkeypatch_driver(cache):
 
     if hasattr(cassandra, 'deserializers'):
         cassandra.deserializers.DesDateType = cache['DesDateType']
+
 
 # assert_resultset_contains uses the typing module, which has different syntax in Python 2 vs. Python 3
 if six.PY3:

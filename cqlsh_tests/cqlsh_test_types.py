@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 from cassandra.util import SortedSet
 
+
 @contextmanager
 def _cqlshlib(cqlshlib_path):
     """
@@ -24,12 +25,14 @@ def _cqlshlib(cqlshlib_path):
     finally:
         sys.path = saved_path
 
+
 def maybe_quote(s):
     """
     Return a quoted string representation for strings, unicode and date time parameters,
     otherwise return a string representation of the parameter.
     """
     return "'{}'".format(s) if isinstance(s, (str, Datetime)) else str(s)
+
 
 class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
     __slots__ = ()
@@ -47,6 +50,7 @@ class Address(namedtuple('Address', ('name', 'number', 'street', 'phones'))):
                                                                            self.number,
                                                                            self.street,
                                                                            phones_str)
+
 
 class Datetime(datetime.datetime):
     """
@@ -75,6 +79,7 @@ class Datetime(datetime.datetime):
         ret = self.strftime(self.default_time_format)
         return self.round_microseconds(ret) if self.round_microseconds else ret
 
+
 class ImmutableDict(frozenset):
     """
     Immutable dictionary implementation to represent map types.
@@ -93,6 +98,7 @@ class ImmutableDict(frozenset):
     def __repr__(self):
         return '{{{}}}'.format(', '.join(['{0}: {1}'.format(maybe_quote(k), maybe_quote(v)) for k, v in sorted(self.items())]))
 
+
 class ImmutableSet(SortedSet):
 
     def __repr__(self):
@@ -104,6 +110,7 @@ class ImmutableSet(SortedSet):
     def __hash__(self):
         return hash(tuple([e for e in self]))
 
+
 class Name(namedtuple('Name', ('firstname', 'lastname'))):
     __slots__ = ()
 
@@ -112,6 +119,7 @@ class Name(namedtuple('Name', ('firstname', 'lastname'))):
 
     def __str__(self):
         return "{{firstname: '{}', lastname: '{}'}}".format(self.firstname, self.lastname)
+
 
 class UTC(datetime.tzinfo):
     """
